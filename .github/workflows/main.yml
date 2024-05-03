@@ -1,0 +1,27 @@
+name: Bitwarden.com backup
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "30 0 * * 0"
+
+jobs:
+  backup:
+    runs-on: ubuntu-22.04
+    env:
+      BW_CLIENTID: ${{ secrets.BW_CLIENTID }}
+      BW_CLIENTSECRET: ${{ secrets.BW_CLIENTSECRET }}
+      BW_PASSWORD: ${{ secrets.BW_PASSWORD }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+
+    - run: |
+       npm install
+       ./node_modules/@bitwarden/cli/build/bw.js login --apikey
+       ./node_modules/@bitwarden/cli/build/bw.js export --format json --session $(./node_modules/@bitwarden/cli/build/bw.js unlock --passwordenv BW_PASSWORD --raw) --raw | openssl aes-256-cbc -a -salt -pbkdf2 -k $BW_PASSWORD -out personal.json.enc
+       ./node_modules/@bitwarden/cli/build/bw.js lock
+       ./node_modules/@bitwarden/cli/build/bw.js logout
+      
+    - uses: stefanzweifel/git-auto-commit-action@v5
+
